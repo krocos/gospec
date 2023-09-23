@@ -3,6 +3,7 @@ package gospec
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 type Satisfiable interface {
@@ -12,8 +13,8 @@ type Satisfiable interface {
 
 type Spec interface {
 	Satisfiable
-	And(condition Satisfiable) Spec
-	Or(condition Satisfiable) Spec
+	And(condition Satisfiable, others ...Satisfiable) Spec
+	Or(condition Satisfiable, others ...Satisfiable) Spec
 	Xor(condition Satisfiable) Spec
 	Not() Spec
 }
@@ -26,12 +27,12 @@ type compositeSpec struct {
 	Satisfiable
 }
 
-func (s *compositeSpec) And(condition Satisfiable) Spec {
-	return newAndSpec(s.Satisfiable, condition)
+func (s *compositeSpec) And(condition Satisfiable, others ...Satisfiable) Spec {
+	return newAndSpec(append([]Satisfiable{s.Satisfiable, condition}, others...)...)
 }
 
-func (s *compositeSpec) Or(condition Satisfiable) Spec {
-	return newOrSpec(s.Satisfiable, condition)
+func (s *compositeSpec) Or(condition Satisfiable, others ...Satisfiable) Spec {
+	return newOrSpec(append([]Satisfiable{s.Satisfiable, condition}, others...)...)
 }
 
 func (s *compositeSpec) Xor(condition Satisfiable) Spec {
@@ -44,62 +45,72 @@ func (s *compositeSpec) Not() Spec {
 
 type andSpec struct {
 	Spec
-	left  Satisfiable
-	right Satisfiable
+	conditions []Satisfiable
 }
 
-func newAndSpec(left Satisfiable, right Satisfiable) *andSpec {
-	s := &andSpec{left: left, right: right}
+func newAndSpec(conditions ...Satisfiable) *andSpec {
+	s := &andSpec{conditions: conditions}
 	s.Spec = New(s)
 	return s
 }
 
 func (s *andSpec) IsSatisfiedBy(ctx context.Context, candidate any) (bool, error) {
-	l, err := s.left.IsSatisfiedBy(ctx, candidate)
-	if err != nil {
-		return false, err
+	for _, condition := range s.conditions {
+		satisfied, err := condition.IsSatisfiedBy(ctx, candidate)
+		if err != nil {
+			return false, err
+		}
+
+		if !satisfied {
+			return false, nil
+		}
 	}
 
-	r, err := s.right.IsSatisfiedBy(ctx, candidate)
-	if err != nil {
-		return false, err
-	}
-
-	return l && r, nil
+	return true, nil
 }
 
 func (s *andSpec) Describe() string {
-	return fmt.Sprintf("(%s AND %s)", s.left.Describe(), s.right.Describe())
+	var descriptions []string
+	for _, condition := range s.conditions {
+		descriptions = append(descriptions, condition.Describe())
+	}
+
+	return fmt.Sprintf("(%s)", strings.Join(descriptions, " AND "))
 }
 
 type orSpec struct {
 	Spec
-	left  Satisfiable
-	right Satisfiable
+	conditions []Satisfiable
 }
 
-func newOrSpec(left Satisfiable, right Satisfiable) *orSpec {
-	s := &orSpec{left: left, right: right}
+func newOrSpec(conditions ...Satisfiable) *orSpec {
+	s := &orSpec{conditions: conditions}
 	s.Spec = New(s)
 	return s
 }
 
 func (s *orSpec) IsSatisfiedBy(ctx context.Context, candidate any) (bool, error) {
-	l, err := s.left.IsSatisfiedBy(ctx, candidate)
-	if err != nil {
-		return false, err
+	for _, condition := range s.conditions {
+		satisfied, err := condition.IsSatisfiedBy(ctx, candidate)
+		if err != nil {
+			return false, err
+		}
+
+		if satisfied {
+			return true, nil
+		}
 	}
 
-	r, err := s.right.IsSatisfiedBy(ctx, candidate)
-	if err != nil {
-		return false, err
-	}
-
-	return l || r, nil
+	return false, nil
 }
 
 func (s *orSpec) Describe() string {
-	return fmt.Sprintf("(%s OR %s)", s.left.Describe(), s.right.Describe())
+	var descriptions []string
+	for _, condition := range s.conditions {
+		descriptions = append(descriptions, condition.Describe())
+	}
+
+	return fmt.Sprintf("(%s)", strings.Join(descriptions, " OR "))
 }
 
 type xorSpec struct {
@@ -128,7 +139,7 @@ func (s *xorSpec) IsSatisfiedBy(ctx context.Context, candidate any) (bool, error
 	return l != r, nil
 }
 
-func (s *xorSpec) String() string {
+func (s *xorSpec) Describe() string {
 	return fmt.Sprintf("(%s XOR %s)", s.left.Describe(), s.right.Describe())
 }
 
