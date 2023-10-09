@@ -119,3 +119,29 @@ func TestCompositeSpec(t *testing.T) {
 	// must contain 'First' AND doc content must contain 'First') OR (doc
 	// title must contain 'Third' AND doc content must contain 'Third')))
 }
+
+func TestSetOperators(t *testing.T) {
+	gospec.SetOperators("&&", "||", "!=", "!")
+	t.Cleanup(func() {
+		gospec.SetOperators("AND", "OR", "XOR", "NOT")
+	})
+
+	// Declaring our specs
+	titleContainsFirst := NewTitleContainsWordSpec("First")
+	titleContainsThird := NewTitleContainsWordSpec("Third")
+
+	contentContainsFirst := NewContentContainsWordSpec("First")
+	contentContainsThird := NewContentContainsWordSpec("Third")
+
+	dateLowerNowSpec := NewDateLowerSpec(time.Date(2023, 6, 27, 23, 0, 0, 0, time.UTC))
+
+	// Composing spec
+	contentSpec := titleContainsFirst.And(contentContainsFirst).Or(titleContainsThird.And(contentContainsThird))
+	spec := dateLowerNowSpec.And(contentSpec)
+
+	t.Log(spec.Describe())
+
+	// (doc date must be lower than '2023-06-27T23:00:00Z' && ((doc title
+	// must contain 'First' && doc content must contain 'First') || (doc
+	// title must contain 'Third' && doc content must contain 'Third')))
+}

@@ -6,6 +6,19 @@ import (
 	"strings"
 )
 
+var (
+	operatorAnd = "AND"
+	operatorOr  = "OR"
+	operatorXor = "XOR"
+	operatorNot = "NOT"
+)
+
+// SetOperators sets a new view for operators like AND, OR to localize or change
+// to some symbol, eg & or |.
+func SetOperators(and, or, xor, not string) {
+	operatorAnd, operatorOr, operatorXor, operatorNot = and, or, xor, not
+}
+
 type Satisfiable interface {
 	Describe() string
 	IsSatisfiedBy(ctx context.Context, candidate any) (bool, error)
@@ -75,7 +88,7 @@ func (s *andSpec) Describe() string {
 		descriptions = append(descriptions, condition.Describe())
 	}
 
-	return fmt.Sprintf("(%s)", strings.Join(descriptions, " AND "))
+	return fmt.Sprintf("(%s)", strings.Join(descriptions, fmt.Sprintf(" %s ", operatorAnd)))
 }
 
 type orSpec struct {
@@ -110,7 +123,7 @@ func (s *orSpec) Describe() string {
 		descriptions = append(descriptions, condition.Describe())
 	}
 
-	return fmt.Sprintf("(%s)", strings.Join(descriptions, " OR "))
+	return fmt.Sprintf("(%s)", strings.Join(descriptions, fmt.Sprintf(" %s ", operatorOr)))
 }
 
 type xorSpec struct {
@@ -140,7 +153,7 @@ func (s *xorSpec) IsSatisfiedBy(ctx context.Context, candidate any) (bool, error
 }
 
 func (s *xorSpec) Describe() string {
-	return fmt.Sprintf("(%s XOR %s)", s.left.Describe(), s.right.Describe())
+	return fmt.Sprintf("(%s %s %s)", s.left.Describe(), operatorXor, s.right.Describe())
 }
 
 type notSpec struct {
@@ -164,5 +177,5 @@ func (s *notSpec) IsSatisfiedBy(ctx context.Context, candidate any) (bool, error
 }
 
 func (s *notSpec) Describe() string {
-	return fmt.Sprintf("NOT(%s)", s.condition.Describe())
+	return fmt.Sprintf("%s(%s)", operatorNot, s.condition.Describe())
 }
