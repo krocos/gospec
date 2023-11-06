@@ -19,13 +19,13 @@ type Document struct {
 }
 
 type TitleContainsWordSpec struct {
-	gospec.Spec
+	gospec.Spec[*Document]
 	word string
 }
 
 func NewTitleContainsWordSpec(word string) *TitleContainsWordSpec {
 	s := &TitleContainsWordSpec{word: word}
-	s.Spec = gospec.New(s)
+	s.Spec = gospec.New[*Document](s)
 	return s
 }
 
@@ -33,18 +33,18 @@ func (s *TitleContainsWordSpec) Describe() string {
 	return fmt.Sprintf("doc title must contain '%s'", s.word)
 }
 
-func (s *TitleContainsWordSpec) IsSatisfiedBy(_ context.Context, candidate any) (bool, error) {
-	return strings.Contains(candidate.(*Document).Title, s.word), nil
+func (s *TitleContainsWordSpec) IsSatisfiedBy(_ context.Context, candidate *Document) (bool, error) {
+	return strings.Contains(candidate.Title, s.word), nil
 }
 
 type ContentContainsWordSpec struct {
-	gospec.Spec
+	gospec.Spec[*Document]
 	word string
 }
 
 func NewContentContainsWordSpec(word string) *ContentContainsWordSpec {
 	s := &ContentContainsWordSpec{word: word}
-	s.Spec = gospec.New(s)
+	s.Spec = gospec.New[*Document](s)
 	return s
 }
 
@@ -52,18 +52,18 @@ func (s *ContentContainsWordSpec) Describe() string {
 	return fmt.Sprintf("doc content must contain '%s'", s.word)
 }
 
-func (s *ContentContainsWordSpec) IsSatisfiedBy(_ context.Context, candidate any) (bool, error) {
-	return strings.Contains(candidate.(*Document).Content, s.word), nil
+func (s *ContentContainsWordSpec) IsSatisfiedBy(_ context.Context, candidate *Document) (bool, error) {
+	return strings.Contains(candidate.Content, s.word), nil
 }
 
 type DateLowerSpec struct {
-	gospec.Spec
+	gospec.Spec[*Document]
 	date time.Time
 }
 
 func NewDateLowerSpec(date time.Time) *DateLowerSpec {
 	s := &DateLowerSpec{date: date}
-	s.Spec = gospec.New(s)
+	s.Spec = gospec.New[*Document](s)
 	return s
 }
 
@@ -71,8 +71,8 @@ func (s *DateLowerSpec) Describe() string {
 	return fmt.Sprintf("doc date must be lower than '%s'", s.date.Format(time.RFC3339))
 }
 
-func (s *DateLowerSpec) IsSatisfiedBy(_ context.Context, candidate any) (bool, error) {
-	return s.date.UnixNano() > candidate.(*Document).Date.UnixNano(), nil
+func (s *DateLowerSpec) IsSatisfiedBy(_ context.Context, candidate *Document) (bool, error) {
+	return s.date.UnixNano() > candidate.Date.UnixNano(), nil
 }
 
 func TestCompositeSpec(t *testing.T) {

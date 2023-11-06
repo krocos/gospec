@@ -6,55 +6,55 @@ import (
 	"strings"
 )
 
-type Satisfiable interface {
+type Satisfiable[T any] interface {
+	IsSatisfiedBy(ctx context.Context, candidate T) (bool, error)
 	Describe() string
-	IsSatisfiedBy(ctx context.Context, candidate any) (bool, error)
 }
 
-type Spec interface {
-	Satisfiable
-	And(condition Satisfiable, others ...Satisfiable) Spec
-	Or(condition Satisfiable, others ...Satisfiable) Spec
-	Xor(condition Satisfiable) Spec
-	Not() Spec
+type Spec[T any] interface {
+	Satisfiable[T]
+	And(condition Satisfiable[T], others ...Satisfiable[T]) Spec[T]
+	Or(condition Satisfiable[T], others ...Satisfiable[T]) Spec[T]
+	Xor(condition Satisfiable[T]) Spec[T]
+	Not() Spec[T]
 }
 
-func New(initial Satisfiable) Spec {
-	return &compositeSpec{Satisfiable: initial}
+func New[T any](initial Satisfiable[T]) Spec[T] {
+	return &compositeSpec[T]{Satisfiable: initial}
 }
 
-type compositeSpec struct {
-	Satisfiable
+type compositeSpec[T any] struct {
+	Satisfiable[T]
 }
 
-func (s *compositeSpec) And(condition Satisfiable, others ...Satisfiable) Spec {
-	return newAndSpec(append([]Satisfiable{s.Satisfiable, condition}, others...)...)
+func (s *compositeSpec[T]) And(condition Satisfiable[T], others ...Satisfiable[T]) Spec[T] {
+	return newAndSpec(append([]Satisfiable[T]{s.Satisfiable, condition}, others...)...)
 }
 
-func (s *compositeSpec) Or(condition Satisfiable, others ...Satisfiable) Spec {
-	return newOrSpec(append([]Satisfiable{s.Satisfiable, condition}, others...)...)
+func (s *compositeSpec[T]) Or(condition Satisfiable[T], others ...Satisfiable[T]) Spec[T] {
+	return newOrSpec(append([]Satisfiable[T]{s.Satisfiable, condition}, others...)...)
 }
 
-func (s *compositeSpec) Xor(condition Satisfiable) Spec {
+func (s *compositeSpec[T]) Xor(condition Satisfiable[T]) Spec[T] {
 	return newXorSpec(s.Satisfiable, condition)
 }
 
-func (s *compositeSpec) Not() Spec {
+func (s *compositeSpec[T]) Not() Spec[T] {
 	return newNotSpec(s.Satisfiable)
 }
 
-type andSpec struct {
-	Spec
-	conditions []Satisfiable
+type andSpec[T any] struct {
+	Spec[T]
+	conditions []Satisfiable[T]
 }
 
-func newAndSpec(conditions ...Satisfiable) *andSpec {
-	s := &andSpec{conditions: conditions}
-	s.Spec = New(s)
+func newAndSpec[T any](conditions ...Satisfiable[T]) *andSpec[T] {
+	s := &andSpec[T]{conditions: conditions}
+	s.Spec = New[T](s)
 	return s
 }
 
-func (s *andSpec) IsSatisfiedBy(ctx context.Context, candidate any) (bool, error) {
+func (s *andSpec[T]) IsSatisfiedBy(ctx context.Context, candidate T) (bool, error) {
 	for _, condition := range s.conditions {
 		satisfied, err := condition.IsSatisfiedBy(ctx, candidate)
 		if err != nil {
@@ -69,7 +69,7 @@ func (s *andSpec) IsSatisfiedBy(ctx context.Context, candidate any) (bool, error
 	return true, nil
 }
 
-func (s *andSpec) Describe() string {
+func (s *andSpec[T]) Describe() string {
 	var descriptions []string
 	for _, condition := range s.conditions {
 		descriptions = append(descriptions, condition.Describe())
@@ -78,18 +78,18 @@ func (s *andSpec) Describe() string {
 	return fmt.Sprintf("(%s)", strings.Join(descriptions, " AND "))
 }
 
-type orSpec struct {
-	Spec
-	conditions []Satisfiable
+type orSpec[T any] struct {
+	Spec[T]
+	conditions []Satisfiable[T]
 }
 
-func newOrSpec(conditions ...Satisfiable) *orSpec {
-	s := &orSpec{conditions: conditions}
-	s.Spec = New(s)
+func newOrSpec[T any](conditions ...Satisfiable[T]) *orSpec[T] {
+	s := &orSpec[T]{conditions: conditions}
+	s.Spec = New[T](s)
 	return s
 }
 
-func (s *orSpec) IsSatisfiedBy(ctx context.Context, candidate any) (bool, error) {
+func (s *orSpec[T]) IsSatisfiedBy(ctx context.Context, candidate T) (bool, error) {
 	for _, condition := range s.conditions {
 		satisfied, err := condition.IsSatisfiedBy(ctx, candidate)
 		if err != nil {
@@ -104,7 +104,7 @@ func (s *orSpec) IsSatisfiedBy(ctx context.Context, candidate any) (bool, error)
 	return false, nil
 }
 
-func (s *orSpec) Describe() string {
+func (s *orSpec[T]) Describe() string {
 	var descriptions []string
 	for _, condition := range s.conditions {
 		descriptions = append(descriptions, condition.Describe())
@@ -113,19 +113,19 @@ func (s *orSpec) Describe() string {
 	return fmt.Sprintf("(%s)", strings.Join(descriptions, " OR "))
 }
 
-type xorSpec struct {
-	Spec
-	left  Satisfiable
-	right Satisfiable
+type xorSpec[T any] struct {
+	Spec[T]
+	left  Satisfiable[T]
+	right Satisfiable[T]
 }
 
-func newXorSpec(left Satisfiable, right Satisfiable) *xorSpec {
-	s := &xorSpec{left: left, right: right}
-	s.Spec = New(s)
+func newXorSpec[T any](left Satisfiable[T], right Satisfiable[T]) *xorSpec[T] {
+	s := &xorSpec[T]{left: left, right: right}
+	s.Spec = New[T](s)
 	return s
 }
 
-func (s *xorSpec) IsSatisfiedBy(ctx context.Context, candidate any) (bool, error) {
+func (s *xorSpec[T]) IsSatisfiedBy(ctx context.Context, candidate T) (bool, error) {
 	l, err := s.left.IsSatisfiedBy(ctx, candidate)
 	if err != nil {
 		return false, err
@@ -139,22 +139,22 @@ func (s *xorSpec) IsSatisfiedBy(ctx context.Context, candidate any) (bool, error
 	return l != r, nil
 }
 
-func (s *xorSpec) Describe() string {
+func (s *xorSpec[T]) Describe() string {
 	return fmt.Sprintf("(%s XOR %s)", s.left.Describe(), s.right.Describe())
 }
 
-type notSpec struct {
-	Spec
-	condition Satisfiable
+type notSpec[T any] struct {
+	Spec[T]
+	condition Satisfiable[T]
 }
 
-func newNotSpec(condition Satisfiable) *notSpec {
-	s := &notSpec{condition: condition}
-	s.Spec = New(s)
+func newNotSpec[T any](condition Satisfiable[T]) *notSpec[T] {
+	s := &notSpec[T]{condition: condition}
+	s.Spec = New[T](s)
 	return s
 }
 
-func (s *notSpec) IsSatisfiedBy(ctx context.Context, candidate any) (bool, error) {
+func (s *notSpec[T]) IsSatisfiedBy(ctx context.Context, candidate T) (bool, error) {
 	b, err := s.condition.IsSatisfiedBy(ctx, candidate)
 	if err != nil {
 		return false, err
@@ -163,6 +163,6 @@ func (s *notSpec) IsSatisfiedBy(ctx context.Context, candidate any) (bool, error
 	return !b, nil
 }
 
-func (s *notSpec) Describe() string {
+func (s *notSpec[T]) Describe() string {
 	return fmt.Sprintf("NOT(%s)", s.condition.Describe())
 }
