@@ -2,7 +2,6 @@ package gospec_test
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -29,10 +28,6 @@ func NewTitleContainsWordSpec(word string) *TitleContainsWordSpec {
 	return s
 }
 
-func (s *TitleContainsWordSpec) Describe() string {
-	return fmt.Sprintf("doc title must contain '%s'", s.word)
-}
-
 func (s *TitleContainsWordSpec) IsSatisfiedBy(_ context.Context, candidate *Document) (bool, error) {
 	return strings.Contains(candidate.Title, s.word), nil
 }
@@ -48,10 +43,6 @@ func NewContentContainsWordSpec(word string) *ContentContainsWordSpec {
 	return s
 }
 
-func (s *ContentContainsWordSpec) Describe() string {
-	return fmt.Sprintf("doc content must contain '%s'", s.word)
-}
-
 func (s *ContentContainsWordSpec) IsSatisfiedBy(_ context.Context, candidate *Document) (bool, error) {
 	return strings.Contains(candidate.Content, s.word), nil
 }
@@ -65,10 +56,6 @@ func NewDateLowerSpec(date time.Time) *DateLowerSpec {
 	s := &DateLowerSpec{date: date}
 	s.Spec = gospec.New[*Document](s)
 	return s
-}
-
-func (s *DateLowerSpec) Describe() string {
-	return fmt.Sprintf("doc date must be lower than '%s'", s.date.Format(time.RFC3339))
 }
 
 func (s *DateLowerSpec) IsSatisfiedBy(_ context.Context, candidate *Document) (bool, error) {
@@ -89,7 +76,9 @@ func TestCompositeSpec(t *testing.T) {
 	}
 
 	// Declaring our specs
-	titleContainsFirst := NewTitleContainsWordSpec("First")
+	titleContainsFirst := gospec.NewInline[*Document](func(ctx context.Context, candidate *Document) (bool, error) {
+		return strings.Contains(candidate.Title, "First"), nil
+	})
 	titleContainsThird := NewTitleContainsWordSpec("Third")
 
 	contentContainsFirst := NewContentContainsWordSpec("First")
@@ -107,15 +96,9 @@ func TestCompositeSpec(t *testing.T) {
 		t.Log(satisfies)
 	}
 
-	// Describing our spec
-	t.Log(spec.Describe())
-
 	// Output:
 	// true
 	// false
 	// true
 	// false
-	// (doc date must be lower than '2023-06-27T23:00:00Z' AND ((doc title
-	// must contain 'First' AND doc content must contain 'First') OR (doc
-	// title must contain 'Third' AND doc content must contain 'Third')))
 }

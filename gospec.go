@@ -2,13 +2,16 @@ package gospec
 
 import (
 	"context"
-	"fmt"
-	"strings"
 )
 
 type Satisfiable[T any] interface {
 	IsSatisfiedBy(ctx context.Context, candidate T) (bool, error)
-	Describe() string
+}
+
+type SatisfiableFn[T any] func(ctx context.Context, candidate T) (bool, error)
+
+func (f SatisfiableFn[T]) IsSatisfiedBy(ctx context.Context, candidate T) (bool, error) {
+	return f(ctx, candidate)
 }
 
 type Spec[T any] interface {
@@ -17,6 +20,10 @@ type Spec[T any] interface {
 	Or(condition Satisfiable[T], others ...Satisfiable[T]) Spec[T]
 	Xor(condition Satisfiable[T]) Spec[T]
 	Not() Spec[T]
+}
+
+func NewInline[T any](fn SatisfiableFn[T]) Spec[T] {
+	return New[T](fn)
 }
 
 func New[T any](initial Satisfiable[T]) Spec[T] {
@@ -69,15 +76,6 @@ func (s *andSpec[T]) IsSatisfiedBy(ctx context.Context, candidate T) (bool, erro
 	return true, nil
 }
 
-func (s *andSpec[T]) Describe() string {
-	var descriptions []string
-	for _, condition := range s.conditions {
-		descriptions = append(descriptions, condition.Describe())
-	}
-
-	return fmt.Sprintf("(%s)", strings.Join(descriptions, " AND "))
-}
-
 type orSpec[T any] struct {
 	Spec[T]
 	conditions []Satisfiable[T]
@@ -102,15 +100,6 @@ func (s *orSpec[T]) IsSatisfiedBy(ctx context.Context, candidate T) (bool, error
 	}
 
 	return false, nil
-}
-
-func (s *orSpec[T]) Describe() string {
-	var descriptions []string
-	for _, condition := range s.conditions {
-		descriptions = append(descriptions, condition.Describe())
-	}
-
-	return fmt.Sprintf("(%s)", strings.Join(descriptions, " OR "))
 }
 
 type xorSpec[T any] struct {
@@ -139,10 +128,6 @@ func (s *xorSpec[T]) IsSatisfiedBy(ctx context.Context, candidate T) (bool, erro
 	return l != r, nil
 }
 
-func (s *xorSpec[T]) Describe() string {
-	return fmt.Sprintf("(%s XOR %s)", s.left.Describe(), s.right.Describe())
-}
-
 type notSpec[T any] struct {
 	Spec[T]
 	condition Satisfiable[T]
@@ -161,8 +146,4 @@ func (s *notSpec[T]) IsSatisfiedBy(ctx context.Context, candidate T) (bool, erro
 	}
 
 	return !b, nil
-}
-
-func (s *notSpec[T]) Describe() string {
-	return fmt.Sprintf("NOT(%s)", s.condition.Describe())
 }
